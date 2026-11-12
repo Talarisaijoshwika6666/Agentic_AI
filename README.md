@@ -1,277 +1,251 @@
-# AI-Powered Multi-Agent SOC Analyst
+# Agentic AI Cybersecurity Analyst
 
-[![Python 3.11](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
-[![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-orange.svg)](https://github.com/langchain-ai/langgraph)
-[![Local LLM](https://img.shields.io/badge/LLM-Ollama%20(qwen3:4b)-purple.svg)](https://ollama.com/)
-[![FAISS Vector Store](https://img.shields.io/badge/RAG-FAISS%20%2B%20MiniLM--L6--v2-green.svg)](https://github.com/facebookresearch/faiss)
-[![FastAPI](https://img.shields.io/badge/API-FastAPI%20REST-009688.svg)](https://fastapi.tiangolo.com/)
-[![Streamlit](https://img.shields.io/badge/Dashboard-Streamlit-red.svg)](https://streamlit.io/)
-[![Tests](https://img.shields.io/badge/Tests-67%20Passed-brightgreen.svg)]()
+An AI-assisted Security Operations Center (SOC) analysis project. It ingests authentication logs, detects suspicious patterns, enriches indicators, retrieves cybersecurity guidance, and produces case reports through a multi-agent workflow.
 
-An autonomous, production-grade **Security Operations Center (SOC) Tier-3 Assistant** built to eliminate alert fatigue, automate complex incident triage, and produce verifiable, evidence-grounded incident reports.
+> This is a local research/demo application, not an autonomous production security control. Review findings before taking action.
 
-Powered by a coordinated swarm of specialized GenAI agents orchestrated via **LangGraph**, local open-source LLMs (**Ollama `qwen3:4b`**), dual-layer machine learning anomaly detection (**Isolation Forest & Random Forest**), **FAISS vector RAG** grounded in MITRE ATT&CK & NIST SP 800-61 Rev 2, threat intelligence feeds (AbuseIPDB, VirusTotal, RFC 1918 guard), **SQLite persistence**, and both an interactive **Streamlit Cyber SOC Dashboard** and headless **FastAPI REST API**.
+## Problem
 
----
+Security analysts often need to correlate authentication events, detection alerts, threat intelligence, and incident-response guidance manually. This project demonstrates how deterministic detection, machine learning, retrieval-augmented generation (RAG), and language-model agents can assist with that investigation workflow.
 
-## 🗺️ Project Roadmap & Completion Status (All 7 Phases Complete)
+## Objectives
 
-| Phase | Title | Deliverables | Status |
-| :---: | :--- | :--- | :---: |
-| **Phase 1** | **Foundation, Ingestion & Detection Slice** | OpenSSH/CSV/JSON parsers, normalizer, SHA-256 event hashing, deterministic rule engine (brute-force, compromise, spraying), Ollama/Mock LLM client. | ✅ **COMPLETED** |
-| **Phase 2** | **MITRE ATT&CK & NIST Playbook RAG** | Curated MITRE ATT&CK subset + NIST SP 800-61 playbooks, local `all-MiniLM-L6-v2` embeddings, cosine `IndexFlatIP` FAISS store, semantic search portal. | ✅ **COMPLETED** |
-| **Phase 3** | **Threat Intelligence Enrichment** | IOC extractor (IPv4, domains, hashes), RFC 1918 private IP data-leak filter, AbuseIPDB & VirusTotal providers, in-memory cache, Live TI tab. | ✅ **COMPLETED** |
-| **Phase 4** | **LangGraph Multi-Agent Orchestration** | 6-Node StateGraph workflow (Orchestrator → Log → Threat Intel → Knowledge → Correlation → Report), shared `SOCState`, streaming traces. | ✅ **COMPLETED** |
-| **Phase 5** | **ML Intrusion & Anomaly Detection** | 13-D feature engineering, Isolation Forest (unsupervised outlier detection), Random Forest (supervised attack classification), synthetic baseline dataset. | ✅ **COMPLETED** |
-| **Phase 6** | **SQLite Case Persistence & History** | SQLAlchemy models, `CaseRecord` upsert logic, Tab 5 Case Management dashboard, human-in-the-loop review state machine (`PENDING` → `APPROVED` / `ESCALATED` / `FALSE_POSITIVE`). | ✅ **COMPLETED** |
-| **Phase 7** | **FastAPI REST API & Benchmarking** | Full REST API (`/investigate`, `/cases`, `/indicators/lookup`, `/knowledge/search`), automated evaluation benchmark suite, and `DEFENSE_GUIDE.md`. | ✅ **COMPLETED** |
+- Parse and normalize OpenSSH, CSV, and JSON authentication logs.
+- Detect suspicious authentication behavior using rules and optional ML.
+- Coordinate specialized analysis steps with LangGraph.
+- Ground knowledge retrieval in the bundled MITRE ATT&CK subset and incident-response playbooks.
+- Generate structured reports and persist reviewed cases locally.
+- Offer both a Streamlit dashboard and a FastAPI interface.
 
----
-
-## 🏛️ System Architecture
+## Architecture
 
 ```mermaid
-flowchart TD
-    subgraph IngestionLayer ["1. Ingestion & Sanitization"]
-        RawLogs["Raw Logs (Syslog / CSV / JSON)"] --> Parser["Sanitizer & Parsers"]
-        Parser --> NormEvents["Normalized LogEvents<br/>(Deterministic EVT- SHA256 Fingerprint)"]
-    end
-
-    subgraph DetectionLayer ["2. Dual-Layer Detection Engine"]
-        NormEvents --> RuleEngine["Deterministic Rules<br/>(Brute Force, Credential Compromise, Spraying)"]
-        NormEvents --> MLDetector["Ensemble ML Detector<br/>(Isolation Forest + Random Forest)"]
-        RuleEngine --> AlertQueue["Unified Detection Alerts Queue"]
-        MLDetector --> AlertQueue
-    end
-
-    subgraph MultiAgentSwarm ["3. LangGraph Multi-Agent Swarm (SOCState)"]
-        direction TB
-        Node0["0. Orchestrator Node<br/>(Triage alerts, severity priority, case init)"]
-        Node1["1. Log Analysis Agent<br/>(Timeline synthesis, burst rate, user profiling)"]
-        Node2["2. Threat Intel Node<br/>(AbuseIPDB/VT reputation with RFC 1918 guard)"]
-        Node3["3. Knowledge Base Agent<br/>(Dense vector RAG: ATT&CK + NIST Playbooks)"]
-        Node4["4. Correlation Agent<br/>(Forensic timeline & technique mapping)"]
-        Node5["5. Report Agent<br/>(Pydantic report synthesis & Event ID verification)"]
-
-        Node0 --> Node1 --> Node2 --> Node3 --> Node4 --> Node5
-    end
-
-    AlertQueue --> Node0
-    NormEvents --> Node0
-
-    subgraph PersistenceLayer ["4. Persistence & Presentation"]
-        Node5 --> FinalReport["Validated InvestigationReport"]
-        FinalReport --> SQLiteDB[("SQLite Database<br/>data/soc_analyst.db")]
-        SQLiteDB --> StreamlitUI["Streamlit Cyber Dashboard<br/>(5 Interactive Tabs)"]
-        SQLiteDB --> FastAPIApp["FastAPI REST API<br/>(Headless Endpoints)"]
-    end
+flowchart LR
+    A[OpenSSH / CSV / JSON logs] --> B[Parse and normalize]
+    B --> C[Rule detections]
+    B --> D[ML anomaly and attack classification]
+    C --> E[Alerts]
+    D --> E
+    E --> F[LangGraph orchestrator]
+    F --> G[Log analysis]
+    G --> H[Threat intelligence]
+    H --> I[MITRE / playbook RAG]
+    I --> J[Correlation]
+    J --> K[Report synthesis and event-ID validation]
+    K --> L[(SQLite case history)]
+    L --> M[Streamlit dashboard]
+    L --> N[FastAPI]
 ```
 
----
+The investigation graph contains an orchestrator, log-analysis node, threat-intelligence node, knowledge node, correlation node, and report node. The report agent validates cited event IDs against the supplied events. Ollama is used when available; the project also provides a deterministic mock LLM for offline/testing use.
 
-## 🤖 Multi-Agent Swarm Roles
+## Implemented capabilities
 
-The LangGraph orchestration coordinates 6 specialist nodes executing sequentially over a shared `SOCState`:
+- **Ingestion:** OpenSSH syslog, CSV, and JSON parsers; field normalization; deterministic event IDs.
+- **Detection:** authentication rules for brute-force, failed-then-success, and user-enumeration patterns; optional ML alerts.
+- **Machine learning:** Isolation Forest anomaly scoring and Random Forest attack classification, using 13 engineered session features. Models load from the local cache or train from the bundled synthetic baseline data.
+- **Multi-agent analysis:** sequential LangGraph workflow with streamed node progress, investigation context, and report synthesis.
+- **RAG:** sentence-transformer embeddings and FAISS semantic retrieval over the included ATT&CK subset and incident-response playbooks. The index is built locally from the source JSON files when it is not cached.
+- **Threat intelligence:** mock provider by default, with optional AbuseIPDB or VirusTotal lookups. Private, loopback, and link-local addresses are filtered from external lookup.
+- **Case management:** SQLAlchemy/SQLite persistence, case history, analyst notes, and review states (`PENDING`, `APPROVED`, `ESCALATED`, `FALSE_POSITIVE`).
+- **User interfaces:** five-tab Streamlit dashboard and FastAPI REST endpoints.
+- **Evaluation:** pytest suite and a scenario-based benchmark command.
 
-1. **Orchestrator Agent (`agents/orchestrator.py`)**:
-   - Triages active alerts by severity (`CRITICAL` > `HIGH` > `MEDIUM` > `LOW`) and attack risk (`RULE-AUTH-002` > `001` > `003` > `ML-002` > `ML-001`).
-   - Generates unique Case IDs (`CASE-XXXXXXXX`) and sets the investigation roadmap.
-2. **Log Analysis Agent (`agents/log_agent.py`)**:
-   - Extracts network and account indicators (IPs, users).
-   - Constructs behavioral authentication profiles, brute force burst rates, and timeline distributions.
-3. **Threat Intelligence Node (`agents/threat_intel_node.py`)**:
-   - Queries external feeds (AbuseIPDB, VirusTotal, Mock) for indicator abuse scores.
-   - **Enforces strict RFC 1918 boundary filtering** (prevents internal IP leakage).
-4. **Knowledge Base Agent (`agents/knowledge_agent.py`)**:
-   - Executes semantic similarity retrieval over FAISS vector index using `all-MiniLM-L6-v2`.
-   - Retrieves grounded MITRE ATT&CK techniques and NIST SP 800-61 containment playbooks.
-5. **Correlation Agent (`agents/correlation_agent.py`)**:
-   - Fuses log findings, threat intelligence reputation, and ATT&CK vectors into a chronological forensic timeline.
-6. **Report Agent (`agents/report_agent.py`)**:
-   - Synthesizes the final executive report.
-   - **Programmatic Event ID Cross-Checking**: Ensures every cited event ID exists in the source telemetry (eliminates hallucinations).
+## Technologies
 
----
+Python, Streamlit, FastAPI, Pydantic, LangGraph, Ollama, sentence-transformers, FAISS, scikit-learn, SQLAlchemy, SQLite, and pytest.
 
-## ⚡ Quickstart Guide (Windows / PowerShell)
+## Repository structure
 
-### 1. Prerequisites
-- **Python**: 3.11+
-- **Ollama**: Installed and running locally (`ollama --version`)
-- **LLM Model**: `qwen3:4b`
-
-```powershell
-# Verify Ollama service is active
-ollama list
-ollama pull qwen3:4b
-```
-
-### 2. Virtual Environment Setup
-```powershell
-cd c:\Users\yashr\OneDrive\Attachments\Desktop\Projects\multi-agent-soc-analyst
-
-# Activate existing virtual environment
-.venv\Scripts\Activate.ps1
-```
-
-### 3. Run Full Automated Test Suite (67 Passing Tests)
-```powershell
-.venv\Scripts\pytest.exe -q
-```
-*Covers parsers, detection rules, prompt injection defense, LLM client, RAG chunking & retrieval, threat intel RFC 1918 safety, LangGraph agents, ML detector, SQLite persistence, and FastAPI REST endpoints.*
-
-### 4. Launch the Streamlit SOC Dashboard
-```powershell
-.venv\Scripts\streamlit.exe run app.py
-```
-Open your browser at `http://localhost:8501`.
-
-The dashboard features **5 Tabs**:
-- **Tab 1: 📥 Ingestion & Telemetry**: Upload raw logs (.log, .txt, .csv, .json), view normalized telemetry grid.
-- **Tab 2: 🚨 Detection Engine & Alerts**: Inspect deterministic rules, ML anomaly scores, and trigger investigations.
-- **Tab 3: 🤖 Multi-Agent Investigation**: Inspect agent status cards, execution traces, forensic timeline, and generated reports.
-- **Tab 4: 📚 Knowledge Base Search (RAG)**: Query MITRE ATT&CK & NIST playbooks, live IP reputation lookup.
-- **Tab 5: 📁 Incident Case Management**: Historical case search, human-in-the-loop review status updates (`PENDING` → `APPROVED` / `ESCALATED` / `FALSE_POSITIVE`), analyst notes, and report downloads.
-
-### 5. Launch the FastAPI REST Server
-```powershell
-.venv\Scripts\uvicorn.exe api.routes:app --host 0.0.0.0 --port 8000 --reload
-```
-Interactive Swagger API documentation available at `http://localhost:8000/docs`.
-
----
-
-## 🌐 FastAPI REST API Reference
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/v1/health` | System health, Ollama status, and database metrics |
-| `POST` | `/api/v1/investigate` | Submit raw log content for headless multi-agent investigation |
-| `GET` | `/api/v1/cases` | List historical cases with optional severity/status filters |
-| `GET` | `/api/v1/cases/{case_id}` | Retrieve specific case metadata, report, and state summary |
-| `PATCH` | `/api/v1/cases/{case_id}/status` | Update human-in-the-loop review status and analyst notes |
-| `DELETE` | `/api/v1/cases/{case_id}` | Delete a case from the database |
-| `POST` | `/api/v1/indicators/lookup` | Live threat intelligence lookup with RFC 1918 private IP protection |
-| `POST` | `/api/v1/knowledge/search` | Query MITRE ATT&CK & NIST vector store |
-
-### Sample API Request (`curl`):
-```bash
-curl -X POST "http://localhost:8000/api/v1/investigate" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "log_content": "Dec 10 08:00:01 server sshd[1001]: Failed password for root from 198.51.100.99 port 50001 ssh2\nDec 10 08:00:03 server sshd[1002]: Failed password for root from 198.51.100.99 port 50002 ssh2\nDec 10 08:00:05 server sshd[1003]: Failed password for root from 198.51.100.99 port 50003 ssh2\nDec 10 08:00:07 server sshd[1004]: Failed password for root from 198.51.100.99 port 50004 ssh2\nDec 10 08:00:09 server sshd[1005]: Failed password for root from 198.51.100.99 port 50005 ssh2\nDec 10 08:00:11 server sshd[1006]: Failed password for root from 198.51.100.99 port 50006 ssh2",
-       "log_format": "auth_openssh",
-       "enable_ml": true
-     }'
-```
-
----
-
-## 📊 Quantitative Benchmark Results
-
-Run the automated evaluation benchmark:
-```powershell
-.venv\Scripts\python.exe -m evaluation.benchmark
-```
-
-### Benchmark Metrics Summary:
-- **Total Scenarios Evaluated**: 4 standard attack scenarios (Brute Force, Credential Compromise, Benign Traffic, Adversarial Prompt Injection)
-- **Pydantic Schema Adherence**: **100%** (all generated reports strictly adhere to schema)
-- **Hallucination Rate (False Event Citations)**: **0.0%** (every cited Event ID is cryptographically verified against source telemetry)
-- **Prompt Injection Defense Rate**: **100.0%** (adversarial instruction injection completely neutralized by XML sandboxing)
-
----
-
-## 🛡️ Security & Defense Architecture
-
-For a deep-dive technical specification of our security safeguards, see [DEFENSE_GUIDE.md](file:///c:/Users/yashr/OneDrive/Attachments/Desktop/Projects/multi-agent-soc-analyst/DEFENSE_GUIDE.md):
-1. **RFC 1918 Private IP Boundary Guard**: Blocks internal network topology leaks to external intelligence APIs.
-2. **Structural Prompt Injection Isolation**: Raw logs encapsulated in strict `<evidence_data>` delimiter tags.
-3. **Programmatic Cross-Verification**: Discards any hallucinated event IDs before report emission.
-4. **Forensic Hashing**: SHA-256 deterministic IDs guarantee tamper-evident non-repudiation.
-5. **Dual-Layer Detection**: Rule-based sliding windows + Isolation Forest anomaly scoring + Random Forest classification.
-6. **NIST SP 800-61 Playbook Grounding**: Direct vector citation of official incident handling steps.
-7. **Human-in-the-Loop Sign-Off**: Mandatory human review gating for critical containment actions.
-
----
-
-## 📂 Repository Structure
-
-```
-multi-agent-soc-analyst/
-├── app.py                     # Streamlit Cyber SOC Dashboard (5 Tabs)
-├── requirements.txt           # Project dependencies
-├── pytest.ini                 # Pytest runner configuration
-├── .env.example               # Environment variables template
-├── .env                       # Local environment settings
-├── README.md                  # Master documentation & setup guide
-├── DEFENSE_GUIDE.md           # Security defense whitepaper & threat model
-├── api/
-│   ├── __init__.py
-│   └── routes.py              # FastAPI REST endpoints
-├── evaluation/
-│   ├── __init__.py
-│   └── benchmark.py           # Quantitative evaluation benchmark suite
-├── storage/
-│   ├── __init__.py
-│   ├── models.py              # SQLAlchemy ORM CaseRecord schema
-│   └── database.py            # SQLite DatabaseManager client
-├── ml/
-│   ├── __init__.py
-│   ├── features.py            # 13-D feature engineering pipeline
-│   ├── dataset.py             # Synthetic baseline dataset generator
-│   └── detector.py            # Isolation Forest & Random Forest ensemble
-├── graph/
-│   ├── __init__.py
-│   ├── state.py               # SOCState TypedDict shared across nodes
-│   └── workflow.py            # LangGraph StateGraph pipeline & streaming
-├── agents/
-│   ├── __init__.py
-│   ├── llm_client.py          # Ollama (qwen3:4b) + offline Mock LLM client
-│   ├── orchestrator.py        # Agent 0: Alert triage & case prioritization
-│   ├── log_agent.py           # Agent 1: Deep log analysis & timeline synthesis
-│   ├── threat_intel_node.py   # Agent 2: External reputation enrichment node
-│   ├── knowledge_agent.py     # Agent 3: MITRE ATT&CK RAG query node
-│   ├── correlation_agent.py   # Agent 4: ATT&CK mapping & correlation narrative
-│   └── report_agent.py        # Agent 5: Report synthesis & event ID verification
-├── detection/
-│   ├── __init__.py
-│   └── rules.py               # Deterministic sliding-window detection rules
-├── ingestion/
-│   ├── __init__.py
-│   ├── parsers.py             # OpenSSH syslog, CSV, and JSON parsers
-│   └── normalize.py           # Field sanitization & SHA-256 event ID generation
-├── models/
-│   ├── __init__.py
-│   └── schemas.py             # Pydantic schemas (LogEvent, Alert, ThreatIntelResult, Report, State)
-├── rag/
-│   ├── __init__.py
-│   ├── embeddings.py          # Sentence-transformers (all-MiniLM-L6-v2)
-│   ├── ingest.py              # Knowledge chunker & FAISS index builder
-│   └── retrieve.py            # Cosine similarity retrieval & citations
-├── tools/
-│   ├── __init__.py
-│   └── reputation.py          # Threat intel service, RFC 1918 filter, AbuseIPDB & VT
+```text
+.
+├── agents/              # Investigation agent nodes and LLM clients
+├── api/                 # FastAPI routes and request/response models
+├── config/              # Environment-backed settings
 ├── data/
-│   ├── knowledge/             # MITRE ATT&CK techniques & NIST IR playbooks
-│   ├── cache/                 # Cached FAISS index and trained ML models
-│   ├── samples/               # OpenSSH sample logs, JSON & CSV samples, ML dataset
-│   └── test_cases/            # Synthetic benchmark scenarios
-└── tests/
-    ├── test_parsers.py        # Ingestion & parser tests
-    ├── test_detection.py      # Rule engine threshold tests
-    ├── test_llm.py            # LLM client & prompt injection tests
-    ├── test_rag.py            # Vector embeddings & RAG retrieval tests
-    ├── test_threat_intel.py   # Threat intel providers & RFC 1918 tests
-    ├── test_agents.py         # Multi-agent unit tests
-    ├── test_workflow.py       # LangGraph integration & streaming tests
-    ├── test_ml.py             # ML feature extraction, Isolation Forest & RF tests
-    ├── test_storage.py        # SQLite persistence & case management tests
-    └── test_api.py            # FastAPI REST endpoints tests
+│   ├── knowledge/       # ATT&CK subset and incident-response playbooks
+│   ├── samples/         # Synthetic/sample authentication logs and datasets
+│   └── test_cases/      # Evaluation scenarios
+├── detection/           # Deterministic detection rules
+├── evaluation/          # Benchmark runner
+├── graph/               # Shared state and LangGraph workflow
+├── ingestion/           # Parsers and event normalization
+├── ml/                  # Feature engineering, dataset, and detector
+├── models/              # Pydantic schemas
+├── rag/                 # Embeddings, index building, and retrieval
+├── reports/             # Markdown report rendering
+├── storage/             # SQLite database manager and ORM models
+├── tests/               # Unit and integration tests
+├── tools/               # Threat-intelligence providers
+├── .env.example         # Configuration template (no credentials)
+├── DEFENSE_GUIDE.md     # Security design notes
+├── app.py               # Streamlit dashboard
+├── requirements.txt     # Python dependencies
+└── pytest.ini           # pytest configuration
 ```
 
----
+Local environments (`.venv`), credentials (`.env`), SQLite databases, trained model files, and generated RAG cache files are excluded from Git. The RAG index and ML models can be recreated locally from the included source data.
 
-## ⚖️ License & Academic Integrity
+## Windows setup
 
-This project is open-source under the MIT License. Developed for technical presentation, faculty defense, and enterprise SOC engineering demonstrations.
+### 1. Clone and install
+
+Install Python 3.11, then open PowerShell:
+
+```powershell
+git clone https://github.com/Talarisaijoshwika6666/Agentic_AI.git
+cd Agentic_AI
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+Copy-Item .env.example .env
+```
+
+If PowerShell blocks environment activation, either use a new Command Prompt and run `.venv\Scripts\activate.bat`, or allow scripts only for the current PowerShell process with `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
+
+### 2. Configure environment
+
+Edit `.env` as needed. Keep this file local; it is ignored by Git. `.env.example` contains placeholders and is safe to commit.
+
+| Setting | Purpose |
+| --- | --- |
+| `OLLAMA_BASE_URL` | Ollama server URL; defaults to `http://localhost:11434`. |
+| `OLLAMA_MODEL` | Local model name; defaults to `qwen3:4b`. |
+| `USE_MOCK_LLM` | Set to `true` to use the deterministic mock client. |
+| `ABUSEIPDB_API_KEY` | Optional AbuseIPDB key. |
+| `VIRUSTOTAL_API_KEY` | Optional VirusTotal key. |
+| `DATABASE_URL` | SQLite URL; defaults to a local database under `data/`. |
+| `ML_ANOMALY_CONTAMINATION`, `ML_ANOMALY_SCORE_THRESHOLD` | Optional ML tuning values. |
+| `BRUTE_FORCE_THRESHOLD`, `BRUTE_FORCE_WINDOW_MINUTES`, `FAILED_THEN_SUCCESS_WINDOW_MINUTES`, `USER_ENUMERATION_THRESHOLD` | Optional rule thresholds. |
+
+Threat-intelligence API keys are optional. Without a configured provider key, the threat-intelligence service uses its mock provider. If Ollama is unavailable, the LLM client falls back to the mock client.
+
+### 3. Install and start Ollama (optional)
+
+Install Ollama for Windows from [ollama.com](https://ollama.com/), start the Ollama application, and pull the configured model:
+
+```powershell
+ollama pull qwen3:4b
+ollama list
+```
+
+The first RAG run may download the configured sentence-transformer model. It also builds the local FAISS index from `data/knowledge/`.
+
+## Run the application
+
+### Streamlit dashboard
+
+From the project directory with the virtual environment activated:
+
+```powershell
+streamlit run app.py
+```
+
+Open `http://localhost:8501`. The dashboard includes:
+
+1. Ingestion and normalized telemetry
+2. Detection alerts
+3. Multi-agent investigation and report
+4. Knowledge-base search and indicator lookup
+5. SQLite case management and analyst review
+
+To try the bundled OpenSSH sample, use the dashboard's **OpenSSH Log** sample control or upload `data/samples/openssh_sample.log`.
+
+### FastAPI backend
+
+```powershell
+python -m uvicorn api.routes:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Open `http://127.0.0.1:8000/docs` for interactive API documentation.
+
+Available routes:
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/health` | Health and runtime information |
+| `POST` | `/api/v1/investigate` | Parse logs, detect alerts, and run an investigation |
+| `GET` | `/api/v1/cases` | List cases with optional filters |
+| `GET` | `/api/v1/cases/{case_id}` | Retrieve a case |
+| `PATCH` | `/api/v1/cases/{case_id}/status` | Update review status and notes |
+| `DELETE` | `/api/v1/cases/{case_id}` | Delete a case |
+| `POST` | `/api/v1/indicators/lookup` | Look up an IP indicator |
+| `POST` | `/api/v1/knowledge/search` | Search the RAG knowledge base |
+
+The API currently has no authentication and permissive CORS configuration. Keep it bound to localhost unless you add appropriate access controls and deployment hardening.
+
+### Sample API investigation
+
+Start the API, then submit the included sample log from PowerShell:
+
+```powershell
+$log = Get-Content .\data\samples\openssh_sample.log -Raw
+$body = @{
+    log_content = $log
+    log_format = "auth_openssh"
+    enable_ml = $true
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+    -Uri "http://127.0.0.1:8000/api/v1/investigate" `
+    -Method Post `
+    -ContentType "application/json" `
+    -Body $body
+```
+
+The bundled sample contains authentication failures and successful-login examples for demonstration; it is not a substitute for validating detection against your own authorized test data.
+
+## Multi-agent workflow
+
+1. The orchestrator selects and prioritizes an alert.
+2. The log agent summarizes events and behavioral patterns.
+3. The threat-intelligence node enriches IP indicators when configured.
+4. The knowledge agent retrieves relevant ATT&CK/playbook excerpts.
+5. The correlation agent combines findings into a timeline and technique mappings.
+6. The report agent generates a structured report and validates its event IDs.
+
+## RAG and machine learning
+
+The RAG knowledge source files are in `data/knowledge/`. The vector index is generated under the ignored `data/cache/` directory when needed. The ML detector derives behavioral features from normalized events and trains or loads its local models from the ignored cache. These generated artifacts are intentionally not required in the repository.
+
+## Tests and benchmark
+
+Run the test suite:
+
+```powershell
+python -m pytest -q
+```
+
+Run the scenario benchmark:
+
+```powershell
+python -m evaluation.benchmark
+```
+
+## Screenshots
+
+No application screenshots are currently committed. Add screenshots of the running dashboard here when available; avoid including real log data, credentials, or personally identifiable information.
+
+## Security and privacy
+
+- Use only logs you are authorized to analyze; prefer the bundled synthetic samples for demonstrations.
+- Never commit `.env`, API keys, access tokens, private logs, or local case databases.
+- External threat-intelligence providers may receive public IP indicators when enabled. Private, loopback, and link-local addresses are filtered by the current lookup service.
+- Generated local databases, model files, and RAG caches are ignored by Git.
+- The project provides analyst recommendations; it does not automatically execute containment actions.
+
+See [DEFENSE_GUIDE.md](DEFENSE_GUIDE.md) for additional implementation notes.
+
+## Planned enhancements
+
+The following are not implemented yet:
+
+- Add screenshots from the current dashboard.
+- Add authentication and role-based access before any network-facing API deployment.
+- Expand supported log sources and provider integrations.
+- Add automated CI checks for tests and documentation.
+
+## License
+
+No `LICENSE` file is currently included. Add a license file after choosing the terms under which this project may be used and redistributed.
